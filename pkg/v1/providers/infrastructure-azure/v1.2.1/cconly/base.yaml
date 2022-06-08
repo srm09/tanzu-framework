@@ -7,6 +7,8 @@ kind: ClusterClass
 metadata:
   name: tkg-azure-default
   namespace: #@ data.values.NAMESPACE
+  annotations:
+    run.tanzu.vmware.com/resolve-tkr: ""
 spec:
   controlPlane:
     ref:
@@ -378,7 +380,7 @@ spec:
               {{ range .network.vnet.cidrBlocks -}}
                 - {{ . }}
               {{- end }}
-      - op: replace
+      - op: add
         path: /spec/template/spec/resourceGroup
         valueFrom:
           template: |
@@ -476,23 +478,23 @@ spec:
             owner: root:root
             path: /etc/kubernetes/azure.json
             permissions: "0644"
-      - op: replace
+      - op: add
         path: /spec/template/spec/kubeadmConfigSpec/clusterConfiguration/imageRepository
         valueFrom:
           template: '{{ (index .TKR_DATA .builtin.controlPlane.version).kubernetesSpec.imageRepository }}'
-      - op: replace
+      - op: add
         path: /spec/template/spec/kubeadmConfigSpec/clusterConfiguration/etcd/local/imageRepository
         valueFrom:
           template: '{{ (index .TKR_DATA .builtin.controlPlane.version).kubernetesSpec.imageRepository }}'
-      - op: replace
+      - op: add
         path: /spec/template/spec/kubeadmConfigSpec/clusterConfiguration/etcd/local/imageTag
         valueFrom:
           template: '{{ (index .TKR_DATA .builtin.controlPlane.version).kubernetesSpec.etcd.imageTag }}'
-      - op: replace
+      - op: add
         path: /spec/template/spec/kubeadmConfigSpec/clusterConfiguration/dns/imageRepository
         valueFrom:
           template: '{{ (index .TKR_DATA .builtin.controlPlane.version).kubernetesSpec.imageRepository }}'
-      - op: replace
+      - op: add
         path: /spec/template/spec/kubeadmConfigSpec/clusterConfiguration/dns/imageTag
         valueFrom:
           template: '{{ (index .TKR_DATA .builtin.controlPlane.version).kubernetesSpec.coredns.imageTag }}'
@@ -1232,8 +1234,6 @@ spec:
       location: ${AZURE_LOCATION}
       networkSpec:
         vnet:
-          name: "${AZURE_VNET_NAME:=${CLUSTER_NAME}-vnet}"
-          resourceGroup: ${AZURE_VNET_RESOURCE_GROUP:=${CLUSTER_NAME}}
           cidrBlock: ${AZURE_VNET_CIDR}
         subnets:
         - name: ${AZURE_CONTROL_PLANE_SUBNET_NAME}
@@ -1242,7 +1242,6 @@ spec:
         - name: ${AZURE_NODE_SUBNET_NAME}
           role: node
           cidrBlock: ${AZURE_NODE_SUBNET_CIDR}
-      resourceGroup: ${AZURE_RESOURCE_GROUP:=${CLUSTER_NAME}}
       subscriptionID: ${AZURE_SUBSCRIPTION_ID}
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
@@ -1305,7 +1304,12 @@ spec:
             layout: true
             overwrite: false
             tableType: gpt
-        files: []
+        files: 
+        - path: /tmp/empty.txt
+          owner: "root:root"
+          permissions: "0600"
+          content: |
+            default file
         initConfiguration:
           nodeRegistration:
             kubeletExtraArgs:
@@ -1324,7 +1328,8 @@ spec:
         - - LABEL=etcd_disk
           - /var/lib/etcddisk
         useExperimentalRetryJoin: true
-        postKubeadmCommands: []
+        postKubeadmCommands:
+        - echo "running postKubeadmCommands…"
         preKubeadmCommands:
         #! Ensure a non-empty preKubeadmCommands array is present to facilitate patching
         - echo "running preKubeadmCommands…"
@@ -1350,13 +1355,13 @@ spec:
         lun: 0
         nameSuffix: etcddisk
       image:
-        marketplace:
+        id: unknown
       osDisk:
         diskSizeGB: 128
         managedDisk:
           storageAccountType: Premium_LRS
         osType: Linux
-      sshPublicKey: ${AZURE_SSH_PUBLIC_KEY_B64:=""}
+      sshPublicKey: ""
       vmSize: ${AZURE_CONTROL_PLANE_MACHINE_TYPE}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
@@ -1373,8 +1378,8 @@ spec:
           storageAccountType: Premium_LRS
         osType: Linux
       image:
-        marketplace:
-      sshPublicKey: ${AZURE_SSH_PUBLIC_KEY_B64:=""}
+        id: unknown
+      sshPublicKey: ""
       vmSize: ${AZURE_NODE_MACHINE_TYPE}
 
 ---
@@ -1386,7 +1391,12 @@ metadata:
 spec:
   template:
     spec:
-      files: []
+      files:
+      - path: /tmp/empty.txt
+        owner: "root:root"
+        permissions: "0600"
+        content: |
+          default file
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
@@ -1395,4 +1405,15 @@ spec:
             cloud-provider: azure
           name: '{{ ds.meta_data["local_hostname"] }}'
       useExperimentalRetryJoin: true
-      preKubeadmCommands: []
+      preKubeadmCommands:
+      - echo "running preKubeadmCommands…"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tkg-compatibility-versions
+  namespace: #@ data.values.NAMESPACE
+  labels:
+    run.tanzu.vmware.com/additional-compatible-tkrs: ""
+data:
+  tkrVersions: '["v1.23.5+vmware.1-tkg.1", "v1.23.5+vmware.1-tkg.1-zshippable"]'
