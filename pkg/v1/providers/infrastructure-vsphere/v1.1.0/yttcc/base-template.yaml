@@ -16,9 +16,13 @@ spec:
     version: v1.21.2
     controlPlane:
       replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+      metadata:
+        annotations:
     workers:
       machineDeployments:
       - class: tkg-worker
         name: tkg-worker-pool
         replicas: ${WORKER_MACHINE_COUNT}
+        metadata:
+          annotations:
     variables:

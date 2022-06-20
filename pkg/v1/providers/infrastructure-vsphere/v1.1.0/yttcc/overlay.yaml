@@ -46,6 +46,10 @@ spec:
     version: #@ data.values.KUBERNETES_VERSION
     controlPlane:
       replicas: #@ data.values.CONTROL_PLANE_MACHINE_COUNT
+      metadata:
+        annotations:
+          #! VVV TODO(vui) os-name handling
+          run.tanzu.vmware.com/resolve-os-image: "os-name=photon"
     workers:
       machineDeployments:
       #@ if not data.values.IS_WINDOWS_WORKLOAD_CLUSTER:
@@ -58,6 +62,10 @@ spec:
         #@overlay/match missing_ok=True
         failureDomain: #@ data.values.VSPHERE_AZ_0
         #@ end
+        metadata:
+          annotations:
+            #! VVV TODO(vui) os-name handling
+            run.tanzu.vmware.com/resolve-os-image: "os-name=photon"
       #@ if data.values.CLUSTER_PLAN == "prodcc":
       #@overlay/append
       - class: tkg-worker
