@@ -10,6 +10,7 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
+	"k8s.io/kubernetes/test/e2e/framework"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/vmware-tanzu/tanzu-framework/pkg/v1/tkg/constants"
@@ -133,6 +134,7 @@ func verifyPackageInstall(ctx context.Context, wccl client.Client, clusterName, 
 	Eventually(func() bool {
 		Expect(pkgi.Status.GenericStatus.Conditions[0].Type).Should(Equal(kappctrl.ReconcileSucceeded))
 		Expect(pkgi.Status.GenericStatus.Conditions[0].Status).Should(Equal(corev1.ConditionTrue))
+		framework.Logf("pkgShortName: %s, pkgName: %s, pkgVersion: %s, status: %+v", pkgShortName, pkgName, pkgVersion, pkgi.Status.GenericStatus.Conditions[0])
 		return true
 	}, waitTimeout, pollingInterval).Should(BeTrue())
 
